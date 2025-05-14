@@ -1,0 +1,9 @@
+# .dockerignore
+node_modules
+.next/cache
+.next/static
+npm-debug.log
+yarn-error.log
+Dockerfile
+.dockerignore
+.env*
