@@ -86,7 +86,47 @@ export default function ChatPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`max-w-xl mx-auto p-3 rounded-lg shadow ${msg.role === "user" ? "bg-blue-100 text-right" : msg.type === "error" ? "bg-red-100 text-left" : "bg-white text-left"}`}>
             {msg.type === "image" ? (
-              <img src={msg.content.startsWith('data:') ? msg.content : `data:image/png;base64,${msg.content}`} alt="Generated" className="rounded max-w-full mx-auto" />
+              <div className="flex flex-col items-center">
+                {isLoading && msg === messages.find(m => m.type === "image" && m === msg) ? (
+                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded mb-2 animate-pulse">Regenerating...</div>
+                ) : (
+                  <img src={msg.content.startsWith('data:') ? msg.content : `data:image/png;base64,${msg.content}`} alt="Generated" className="rounded max-w-full mx-auto mb-2" />
+                )}
+                <button
+                  className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300 transition-colors"
+                  onClick={async () => {
+                    // Clear the image while loading
+                    setMessages((msgs) => msgs.map((m, idx) => idx === i ? { ...m, content: "", type: "image" } : m));
+                    setIsLoading(true);
+                    try {
+                      const res = await fetch("/api/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt: messages[i-1]?.content || input, size: selectedSize }),
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.imageUrl) {
+                        setMessages((msgs) => msgs.map((m, idx) => idx === i ? { ...m, content: data.imageUrl, type: "image" } : m));
+                      } else {
+                        setMessages((msgs) => [
+                          ...msgs,
+                          { role: "assistant", content: data.error || "Failed to generate image.", type: "error" },
+                        ]);
+                      }
+                    } catch (err: any) {
+                      setMessages((msgs) => [
+                        ...msgs,
+                        { role: "assistant", content: err.message || "Network error.", type: "error" },
+                      ]);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  Regenerate
+                </button>
+              </div>
             ) : (
               msg.content
             )}
