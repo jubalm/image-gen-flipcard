@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
+import { BackgroundGradient } from "@/components/BackgroundGradient";
 
-const SIZES = [
+const ORIENTATIONS = [
   {
     value: "1024x1024",
     label: "Square",
@@ -10,6 +11,7 @@ const SIZES = [
         <rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="2" />
       </svg>
     ),
+    cardClass: "aspect-square w-96",
   },
   {
     value: "1024x1792",
@@ -19,6 +21,7 @@ const SIZES = [
         <rect x="2" y="2" width="14" height="24" rx="3" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="2" />
       </svg>
     ),
+    cardClass: "aspect-[100/175] w-72",
   },
   {
     value: "1792x1024",
@@ -28,144 +31,130 @@ const SIZES = [
         <rect x="2" y="2" width="28" height="12" rx="3" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="2" />
       </svg>
     ),
+    cardClass: "aspect-[175/100] h-72",
   },
 ];
 
-type Message = {
-  role: "user" | "assistant" | "system";
-  content: string;
-  type?: "image" | "error";
-};
-
-export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "system", content: "Welcome! Describe an image you want to generate." }
-  ]);
+export default function ImageGenPage() {
   const [input, setInput] = useState("A beautiful sunset over the mountains");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSize, setSelectedSize] = useState<string>(SIZES[0].value);
+  const [selectedOrientation, setSelectedOrientation] = useState<string>(ORIENTATIONS[0].value);
+  const [image, setImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const orientationObj = ORIENTATIONS.find(o => o.value === selectedOrientation) || ORIENTATIONS[0];
+
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setImage(null);
     if (!input.trim()) return;
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((msgs) => [...msgs, userMessage]);
-    setInput("");
     setIsLoading(true);
+    setFlipped(true);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, size: selectedSize }),
+        body: JSON.stringify({ prompt: input, size: selectedOrientation }),
       });
       const data = await res.json();
       if (res.ok && data.imageUrl) {
-        setMessages((msgs) => [
-          ...msgs,
-          { role: "assistant", content: data.imageUrl, type: "image" },
-        ]);
+        setTimeout(() => setImage(data.imageUrl), 400); // allow transition
       } else {
-        setMessages((msgs) => [
-          ...msgs,
-          { role: "assistant", content: data.error || "Failed to generate image.", type: "error" },
-        ]);
+        setError(data.error || "Failed to generate image.");
       }
     } catch (err: any) {
-      setMessages((msgs) => [
-        ...msgs,
-        { role: "assistant", content: err.message || "Network error.", type: "error" },
-      ]);
+      setError(err.message || "Network error.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleFlip = () => {
+    setFlipped((f) => !f);
+    setError(null);
+    // Do not clear image on flip
+  };
+
+  const handleOrientationChange = (value: string) => {
+    setSelectedOrientation(value);
+    setError(null);
+    // Do not clear image when changing orientation
+  };
+
   return (
-    <main className="flex flex-col h-screen bg-gray-50">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, i) => (
-          <div key={i} className={`max-w-xl mx-auto p-3 rounded-lg shadow ${msg.role === "user" ? "bg-blue-100 text-right" : msg.type === "error" ? "bg-red-100 text-left" : "bg-white text-left"}`}>
-            {msg.type === "image" ? (
-              <div className="flex flex-col items-center">
-                {isLoading && msg === messages.find(m => m.type === "image" && m === msg) ? (
-                  <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded mb-2 animate-pulse">Regenerating...</div>
-                ) : (
-                  <img src={msg.content.startsWith('data:') ? msg.content : `data:image/png;base64,${msg.content}`} alt="Generated" className="rounded max-w-full mx-auto mb-2" />
-                )}
-                <button
-                  className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300 transition-colors"
-                  onClick={async () => {
-                    // Clear the image while loading
-                    setMessages((msgs) => msgs.map((m, idx) => idx === i ? { ...m, content: "", type: "image" } : m));
-                    setIsLoading(true);
-                    try {
-                      const res = await fetch("/api/generate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ prompt: messages[i-1]?.content || input, size: selectedSize }),
-                      });
-                      const data = await res.json();
-                      if (res.ok && data.imageUrl) {
-                        setMessages((msgs) => msgs.map((m, idx) => idx === i ? { ...m, content: data.imageUrl, type: "image" } : m));
-                      } else {
-                        setMessages((msgs) => [
-                          ...msgs,
-                          { role: "assistant", content: data.error || "Failed to generate image.", type: "error" },
-                        ]);
-                      }
-                    } catch (err: any) {
-                      setMessages((msgs) => [
-                        ...msgs,
-                        { role: "assistant", content: err.message || "Network error.", type: "error" },
-                      ]);
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  disabled={isLoading}
-                >
-                  Regenerate
-                </button>
+    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div
+        ref={cardRef}
+        className={`relative ${orientationObj.cardClass} perspective cursor-pointer select-none transition-all duration-500`}
+        onClick={handleFlip}
+      >
+        <div
+          className={`absolute inset-0 w-full h-full transition-transform duration-700 [transform-style:preserve-3d] ${flipped ? "rotate-y-180" : ""}`}
+        >
+          {/* Front: Form */}
+          <div className="absolute inset-0 w-full h-full bg-white rounded shadow-lg flex flex-col justify-center items-center gap-6 [backface-visibility:hidden]">
+            <form
+              onSubmit={handleGenerate}
+              className="w-full flex flex-col gap-4 px-8"
+              onClick={e => e.stopPropagation()}
+            >
+              <label className="font-semibold">Describe your image</label>
+              <input
+                className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring disabled:opacity-50"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Describe an image to generate..."
+                disabled={isLoading}
+              />
+              <div className="flex gap-2">
+                {ORIENTATIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    className={`flex items-center justify-center border rounded px-3 py-2 text-lg transition-colors focus:outline-none focus:ring disabled:opacity-50 ${selectedOrientation === o.value ? "bg-purple-600 text-white border-purple-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
+                    onClick={() => handleOrientationChange(o.value)}
+                    disabled={isLoading}
+                    aria-label={o.label}
+                  >
+                    <span>{o.icon}</span>
+                  </button>
+                ))}
               </div>
-            ) : (
-              msg.content
+              <button
+                type="submit"
+                className="bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                disabled={isLoading || !input.trim()}
+              >
+                {isLoading ? "Generating..." : "Generate"}
+              </button>
+            </form>
+          </div>
+          {/* Back: Image */}
+          <div className="absolute inset-0 w-full h-full rounded shadow-lg [backface-visibility:hidden] rotate-y-180 flex flex-col items-center justify-center overflow-hidden">
+            <BackgroundGradient className="rounded" />
+            {isLoading && (
+              <div className="relative z-10 w-full h-full flex items-center justify-center text-white font-bold text-lg animate-pulse">Generating image...</div>
+            )}
+            {image && !isLoading && (
+              <img
+                src={image.startsWith('data:') ? image : `data:image/png;base64,${image}`}
+                alt="Generated"
+                className="relative z-10 rounded max-w-full max-h-full mx-auto shadow transition-opacity duration-700 opacity-100"
+                style={{ transition: 'opacity 0.7s' }}
+              />
+            )}
+            {error && (
+              <div className="relative z-10 text-red-600 mt-4 bg-white bg-opacity-80 px-4 py-2 rounded">{error}</div>
             )}
           </div>
-        ))}
-        {isLoading && (
-          <div className="max-w-xl mx-auto p-3 rounded-lg bg-gray-200 animate-pulse">Generating image...</div>
-        )}
-      </div>
-      <form onSubmit={handleSend} className="flex flex-col sm:flex-row p-4 bg-white border-t gap-2">
-        <div className="flex gap-2 mb-2 sm:mb-0">
-          {SIZES.map((size) => (
-            <button
-              key={size.value}
-              type="button"
-              className={`flex items-center justify-center border rounded px-3 py-2 text-lg transition-colors focus:outline-none focus:ring ${selectedSize === size.value ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"}`}
-              onClick={() => setSelectedSize(size.value)}
-              disabled={isLoading}
-              aria-label={size.label}
-            >
-              <span>{size.icon}</span>
-            </button>
-          ))}
         </div>
-        <input
-          className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Describe an image to generate..."
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={isLoading || !input.trim()}
-        >
-          Send
-        </button>
-      </form>
+      </div>
+      <div className="mt-6 text-xs text-gray-400 text-center max-w-md">
+        Click the card to flip and see your image, or flip back to try again. Choose orientation before generating.
+      </div>
     </main>
   );
 }
