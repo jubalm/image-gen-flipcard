@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 
 @theme {
+  --color-primary: var(--color-primary); /* violet-400 */
+  --color-foreground: var(--color-foreground);
+  --color-background: var(--color-background);
+  --color-muted-background: var(--color-muted-background);
+
   @keyframes gradient-move {
     0% {
       background-position: 0% 50%;
@@ -13,4 +18,20 @@
     }
   }
   --animate-gradient-move: gradient-move 8s linear infinite;
+}
+
+@layer theme {
+  :root {
+    --color-primary: var(--color-purple-500);
+    --color-foreground: #ffffff;
+    --color-background: #f0f0f0;
+    --color-muted-background: #fafaff;
+  }
+
+  .dark {
+    --color-primary: var(--color-purple-600);
+    --color-foreground: #f8fafc;
+    --color-background: var(--color-gray-900);
+    --color-muted-background: var(--color-gray-800);
+  }
 }
