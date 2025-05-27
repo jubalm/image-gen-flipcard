@@ -222,6 +222,14 @@ export default function ImageGenPage() {
       }}
     >
       <DarkModeSwitcher />
+
+      <div
+        className="mt-6 text-xs text-center max-w-md mb-4"
+        style={{ color: "var(--color-foreground)", opacity: 0.7 }}
+      >
+        Click a card to flip and see your image, or flip back to try again. Choose
+        orientation before generating.
+      </div>
       <div className="flex flex-wrap gap-8 justify-center">
         {cards.map((card, idx) => (
           <ImageGenCard
@@ -255,13 +263,6 @@ export default function ImageGenPage() {
       >
         + Add Card
       </button>
-      <div
-        className="mt-6 text-xs text-center max-w-md"
-        style={{ color: "var(--color-foreground)", opacity: 0.7 }}
-      >
-        Click a card to flip and see your image, or flip back to try again. Choose
-        orientation before generating.
-      </div>
     </main>
   )
 }

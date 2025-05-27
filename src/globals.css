@@ -23,14 +23,14 @@
 @layer theme {
   :root {
     --color-primary: var(--color-purple-500);
-    --color-foreground: #ffffff;
-    --color-background: #f0f0f0;
-    --color-muted-background: #fafaff;
+    --color-foreground: var(--color-gray-800);
+    --color-background: var(--color-gray-100);
+    --color-muted-background: var(--color-gray-50);
   }
 
   .dark {
     --color-primary: var(--color-purple-600);
-    --color-foreground: #f8fafc;
+    --color-foreground: var(--color-gray-100);
     --color-background: var(--color-gray-900);
     --color-muted-background: var(--color-gray-800);
   }
